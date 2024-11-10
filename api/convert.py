@@ -45,7 +45,7 @@ class handler(BaseHTTPRequestHandler):
 
     def parse_csv_data(self, binary_data):
         # Convert binary data to string and parse as CSV
-        csv_data = binary_data.decode('utf-8')
+        csv_data = binary_data.decode('utf-8', errors='ignore')
         return csv_data
 
     def convert_excel_to_csv(self, sheet):
