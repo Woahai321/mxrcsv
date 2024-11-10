@@ -1,0 +1,16 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+pandas = "*"
+# Flask or other dependencies if using them
+flask = "*"
+
+[requires]
+python_version = "3.12"  # Or 3.9, but use 3.12 unless absolutely necessary
+
+[scripts]
+start = "python api/convert.py"
+
