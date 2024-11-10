@@ -24,8 +24,8 @@ class handler(BaseHTTPRequestHandler):
                 # Parse the binary data
                 parsed_data = self.parse_binary_data(binary_data)
 
-                # Convert the parsed data to the desired CSV format
-                csv_data = self.convert_to_desired_csv(parsed_data)
+                # Convert the parsed data to CSV
+                csv_data = self.convert_to_csv(parsed_data)
 
                 # Send the response
                 self.send_response(200)
@@ -67,46 +67,11 @@ class handler(BaseHTTPRequestHandler):
             writer.writerow(row)
         return output.getvalue()
 
-    def convert_to_desired_csv(self, data):
-        # Convert the parsed data to the desired CSV format
+    def convert_to_csv(self, data):
+        # Convert the parsed data to CSV
         output = StringIO()
         writer = csv.writer(output)
-
-        # Write the headers
-        writer.writerow([
-            "Rippling Emp No", "Employee Name", "Import ID", "Start Time", "End Time",
-            "Pay Period Start Date", "Pay Period End Date", "Job Code", "Comment",
-            "Break Type", "Break Start Time", "Break End Time"
-        ])
-
-        # Parse the input data
         lines = data.splitlines()
-        note = ""
         for line in lines:
-            if line.startswith("Time Tracking"):
-                continue  # Ignore "Time Tracking" line
-            elif line.startswith("Add Recaptcha to Web Forms"):
-                note = line.split(' ')[-1]  # Extract note
-            elif line.startswith("Started By"):
-                headers = line.split('\t')
-            elif line and not line.startswith("Total"):
-                values = line.split('\t')
-                # Ensure the line has the expected number of columns
-                if len(values) >= 6:
-                    # Map the values to the desired CSV format
-                    writer.writerow([
-                        "",  # Rippling Emp No
-                        values[0],  # Employee Name
-                        "",  # Import ID
-                        values[4],  # Start Time
-                        values[5],  # End Time
-                        values[2],  # Pay Period Start Date
-                        values[3],  # Pay Period End Date
-                        "",  # Job Code
-                        note,  # Comment
-                        "",  # Break Type
-                        "",  # Break Start Time
-                        ""  # Break End Time
-                    ])
-
+            writer.writerow(line.split(','))
         return output.getvalue()
