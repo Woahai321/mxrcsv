@@ -1,5 +1,7 @@
 {
-  "routes": [
-    { "src": "/api/convert", "dest": "/api/convert.py" }
-  ]
+  "functions": {
+    "api/*.py": {
+      "runtime": "python3.9"
+    }
+  }
 }
