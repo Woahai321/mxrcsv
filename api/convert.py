@@ -1,33 +1,40 @@
-# api/convert.py
+from http.server import BaseHTTPRequestHandler
 import json
 import pandas as pd
 from io import StringIO
 
-def handler(request):
-    try:
-        # Try to parse the incoming JSON object from the request body
-        body = request.get_json(silent=True)
-        
-        # Check if the request body contains data, if not return a 400 error
+class handler(BaseHTTPRequestHandler):
+    # Handle POST requests
+    def do_POST(self):
+        # Set the response headers to JSON
+        self.send_response(200)
+        self.send_header('Content-type','application/json')
+        self.end_headers()
+
+        # Read and parse the request body
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length)
+        body = json.loads(post_data.decode('utf-8'))
+
+        # Validate input data
         if body is None or "data" not in body:
-            return (json.dumps({"error": "Invalid input format or missing 'data' field."}), 400, {"Content-Type": "application/json"})
+            error_response = json.dumps({"error": "Invalid input or missing 'data' field."})
+            self.wfile.write(error_response.encode('utf-8'))
+            return
         
-        # Validate that all items in the 'data' list contain 'name' and 'age' keys
         data = body.get("data", [])
+        # Ensure each item has 'name' and 'age'
         for item in data:
             if "name" not in item or "age" not in item:
-                return (json.dumps({"error": "Each data item must have 'name' and 'age' fields."}), 400, {"Content-Type": "application/json"})
+                error_response = json.dumps({"error": "Each item must have 'name' and 'age'."})
+                self.wfile.write(error_response.encode('utf-8'))
+                return
 
-        # Convert the data into a Pandas DataFrame
+        # Convert data into a CSV format using pandas
         df = pd.DataFrame(data)
-
-        # Prepare the CSV as a string in memory (like a file)
         csv_output = StringIO()
-        df.to_csv(csv_output, index=False)  # Convert DataFrame to CSV format
+        df.to_csv(csv_output, index=False)
         
-        # Return the CSV as a string within the response
-        return (json.dumps({"csv": csv_output.getvalue()}), 200, {"Content-Type": "application/json"})
-
-    except Exception as e:
-        # Catch and log any other exceptions, return a 500 error with relevant info
-        return (json.dumps({"error": str(e)}), 500, {"Content-Type": "application/json"})
+        # Return the CSV as part of the JSON response
+        success_response = json.dumps({"csv": csv_output.getvalue()})
+        self.wfile.write(success_response.encode('utf-8'))
