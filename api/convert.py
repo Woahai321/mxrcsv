@@ -60,7 +60,7 @@ class handler(BaseHTTPRequestHandler):
 
     def convert_excel_to_csv(self, sheet):
         # Convert the Excel sheet to CSV
-        output = StringIO()
+        output = io.StringIO()
         writer = csv.writer(output)
         for row in sheet.iter_rows(values_only=True):
             writer.writerow(row)
