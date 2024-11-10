@@ -91,20 +91,22 @@ class handler(BaseHTTPRequestHandler):
                 headers = line.split('\t')
             elif line and not line.startswith("Total"):
                 values = line.split('\t')
-                # Map the values to the desired CSV format
-                writer.writerow([
-                    "",  # Rippling Emp No
-                    values[0],  # Employee Name
-                    "",  # Import ID
-                    values[4],  # Start Time
-                    values[5],  # End Time
-                    values[2],  # Pay Period Start Date
-                    values[3],  # Pay Period End Date
-                    "",  # Job Code
-                    note,  # Comment
-                    "",  # Break Type
-                    "",  # Break Start Time
-                    ""  # Break End Time
-                ])
+                # Ensure the line has the expected number of columns
+                if len(values) >= 6:
+                    # Map the values to the desired CSV format
+                    writer.writerow([
+                        "",  # Rippling Emp No
+                        values[0],  # Employee Name
+                        "",  # Import ID
+                        values[4],  # Start Time
+                        values[5],  # End Time
+                        values[2],  # Pay Period Start Date
+                        values[3],  # Pay Period End Date
+                        "",  # Job Code
+                        note,  # Comment
+                        "",  # Break Type
+                        "",  # Break Start Time
+                        ""  # Break End Time
+                    ])
 
         return output.getvalue()
