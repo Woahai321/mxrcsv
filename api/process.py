@@ -54,24 +54,24 @@ class handler(BaseHTTPRequestHandler):
         data_row_pattern = re.compile(r'^[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+,[^,]+$')
         header_pattern = re.compile(r'^Started By,Ended By,Start Date,End Date,Start Time,End Time,Duration$')
 
-        print("### RAW DATA ###")
-        print(raw_data)
-        print("### SPLIT LINES ###")
+       # print("### RAW DATA ###")
+        #print(raw_data)
+       # print("### SPLIT LINES ###")
 
         for line in lines:
             line = line.strip()
 
             # Skip unnecessary lines like 'Time Tracking', empty lines, or known "Total" lines
             if not line or line.startswith(',') or line.startswith('Time Tracking') or line.startswith('Total'):
-                print(f"Skipping line: '{line}' (empty, Time Tracking, or redundant)")
+                #print(f"Skipping line: '{line}' (empty, Time Tracking, or redundant)")
                 continue
 
             # Skip internal header rows found inside the data
             if header_pattern.match(line):
-                print(f"Skipping header line inside data: '{line}'")
+                #print(f"Skipping header line inside data: '{line}'")
                 continue
 
-            print(f"Processing line: '{line}'")
+            #print(f"Processing line: '{line}'")
 
             # If the line matches the data row pattern (valid comma-separated row)
             if data_row_pattern.match(line):
@@ -88,13 +88,13 @@ class handler(BaseHTTPRequestHandler):
                     
                     # Write the mapped row to CSV
                     csv_writer.writerow([current_comment, employee_name, pay_period_start, pay_period_end, start_time, end_time])
-                    print(f"Writing CSV row: {current_comment}, {employee_name}, {pay_period_start}, {pay_period_end}, {start_time}, {end_time}")
+                    #print(f"Writing CSV row: {current_comment}, {employee_name}, {pay_period_start}, {pay_period_end}, {start_time}, {end_time}")
                 else:
-                    print(f"Warning: No comment found for data row: {line}")
+                    #print(f"Warning: No comment found for data row: {line}")
             else:
                 # Treat this line as a new "comment" or task name
                 current_comment = line.split(',')[0].strip()  # Extract the first part before the first comma as the comment/task name
-                print(f"Found comment: {current_comment}")
+                #print(f"Found comment: {current_comment}")
 
         # Return the CSV data as string
         return csv_output.getvalue()
@@ -104,5 +104,5 @@ if __name__ == "__main__":
     PORT = 8000
     server_address = ('', PORT)
     httpd = HTTPServer(server_address, handler)
-    print(f"Serving HTTP API on port {PORT}.")
+    #print(f"Serving HTTP API on port {PORT}.")
     httpd.serve_forever()
