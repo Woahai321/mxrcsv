@@ -1,7 +1,5 @@
 import csv
-from http.server import BaseHTTPRequestHandler
 from io import StringIO
-import cgi
 import re
 
 class handler(BaseHTTPRequestHandler):
@@ -35,15 +33,15 @@ class handler(BaseHTTPRequestHandler):
         """
         Convert raw string data to a cleaned CSV format.
         """
-        # Step 1: Clean the data (remove unwanted commas/lines)
-        # Remove unnecessary lines: empty ones or full of commas
+        # Step 1: Clean unnecessary commas and empty lines
+        # Remove lines that are only commas or empty
         cleaned_data = re.sub(r'^,+\n?', '', raw_data, flags=re.MULTILINE)
         cleaned_data = re.sub(r'^\n', '', cleaned_data, flags=re.MULTILINE)
 
-        # Remove rows starting with "Total" because we don't need them
+        # Remove rows like "Total" because of duplication
         cleaned_data = re.sub(r'^Total.*\n?', '', cleaned_data, flags=re.MULTILINE)
 
-        # Initialize the final CSV data -- first the headers
+        # Step 2: Initialize CSV output
         csv_output = StringIO()
         csv_writer = csv.writer(csv_output)
         csv_writer.writerow(["Task Name", "Started By", "Ended By", "Start Date", "End Date", "Start Time", "End Time", "Duration"])
@@ -51,15 +49,17 @@ class handler(BaseHTTPRequestHandler):
         lines = cleaned_data.splitlines()
         current_task = None
 
-        # Step 2: Parse lines and fill the CSV rows
+        # Step 3: Parse lines and fill out the CSV rows
         for line in lines:
-            # If the line doesn't contain commas, treat it as a task name
+            line = line.strip()
+            
+            # Check if line is a task name line (no commas means it's a title)
             if ',' not in line:
-                current_task = line.strip()
-            # If the line looks like a data row based on having comma-separated values
-            elif re.match(r'.*,.*,.*,.*,.*,.*,.*', line):  # Match rows with CSV structure
-                csv_writer.writerow([current_task] + line.split(','))
-
-        # Return the final CSV as a string
+                current_task = line  # Update the current task name
+            elif re.match(r'.*,.*,.*,.*,.*,.*,.*', line):  # This is a data row
+                # Prepend task name only to data rows
+                if current_task:
+                    csv_writer.writerow([current_task] + line.split(','))
+        
         return csv_output.getvalue()
 
