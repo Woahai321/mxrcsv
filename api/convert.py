@@ -81,19 +81,23 @@ class handler(BaseHTTPRequestHandler):
 
         # Parse the input data and map to the desired CSV format
         lines = data.splitlines()
+        header_found = False
         for line in lines:
             if line.startswith("Started By"):
+                header_found = True
                 continue
             if line.startswith("Total"):
+                header_found = False
                 continue
             if line.strip() == "":
                 continue
 
-            parts = line.split('\t')
-            if len(parts) == 7:
-                started_by, ended_by, start_date, end_date, start_time, end_time, duration = parts
-                writer.writerow([
-                    "", started_by, "", start_time, end_time, start_date, end_date, "", "", "", "", ""
-                ])
+            if header_found:
+                parts = line.split('\t')
+                if len(parts) == 7:
+                    started_by, ended_by, start_date, end_date, start_time, end_time, duration = parts
+                    writer.writerow([
+                        "", started_by, "", start_time, end_time, start_date, end_date, "", "", "", "", ""
+                    ])
 
         return output.getvalue()
