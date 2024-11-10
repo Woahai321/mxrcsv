@@ -1,18 +1,19 @@
 import csv
-import io
 from http.server import BaseHTTPRequestHandler
 from io import StringIO
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        if self.path == '/api/convert-file':
+        # Check for the '/api/convert-file' route
+        if self.path == '/api/convert-file':  # Match the correct path
             self.handle_convert_file()
         else:
+            # Send 404 if the path doesn't exist
             self.send_error(404, 'Not Found')
 
     def handle_convert_file(self):
         try:
-            # Read the content of the POST request
+            # Read the content of the POST request (long string data)
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length).decode('utf-8')
 
@@ -38,33 +39,39 @@ class handler(BaseHTTPRequestHandler):
         # Initialize variables to store parsed data
         parsed_data = []
         current_comment = None
+        headers_found = False
 
         for line in lines:
+            # Skip over the unnecessary sections
             if line.startswith("Time Tracking"):
                 continue  # Ignore the "Time Tracking" line
 
-            if line.startswith("Started By"):
-                headers = line.split()
-                continue
+            # Identify the header line when it's encountered
+            if not headers_found and line.startswith("Started By"):
+                headers_found = True  # Mark that headers have been found
+                continue  # Move on to processing data rows after headers
 
             if line.startswith("Total"):
-                continue  # Ignore the "Total" line
+                continue  # Ignore "Total" line
 
-            if not headers:
-                current_comment = line
+            # If the header wasn't found yet, treat the line as a comment
+            if not headers_found:
+                current_comment = line.strip()  # Treat this as a comment
                 continue
 
+            # By now, headers are set, and current_comment has been found—process row data
             if current_comment:
-                values = line.split()
-                parsed_data.append({
-                    'Employee Name': values[0],
-                    'Pay Period Start Date': values[2],
-                    'Pay Period End Date': values[3],
-                    'Start Time': values[4],
-                    'End Time': values[5],
-                    'Comment': current_comment
-                })
-                current_comment = None
+                values = line.split(",")  # Split the line by commas, assuming CSV format
+                if len(values) >= 6:  # Ensure that the line has enough columns
+                    parsed_data.append({
+                        'Employee Name': values[0].strip(),
+                        'Pay Period Start Date': values[2].strip(),
+                        'Pay Period End Date': values[3].strip(),
+                        'Start Time': values[4].strip(),
+                        'End Time': values[5].strip(),
+                        'Comment': current_comment.strip()
+                    })
+                current_comment = None  # Reset comment after processing the row
 
         return parsed_data
 
@@ -83,18 +90,18 @@ class handler(BaseHTTPRequestHandler):
 
         for entry in data:
             writer.writerow({
-                'Rippling Emp No': '',
+                'Rippling Emp No': '',  # Leave empty as per your template
                 'Employee Name': entry['Employee Name'],
-                'Import ID': '',
+                'Import ID': '',  # Leave empty as per your template
                 'Start Time': entry['Start Time'],
                 'End Time': entry['End Time'],
                 'Pay Period Start Date': entry['Pay Period Start Date'],
                 'Pay Period End Date': entry['Pay Period End Date'],
-                'Job Code': '',
+                'Job Code': '',  # Leave empty as per your template
                 'Comment': entry['Comment'],
-                'Break Type': '',
-                'Break Start Time': '',
-                'Break End Time': ''
+                'Break Type': '',  # Leave empty as per your template
+                'Break Start Time': '',  # Leave empty as per your template
+                'Break End Time': ''  # Leave empty as per your template
             })
 
         return output.getvalue()
