@@ -1,40 +1,44 @@
-from http.server import BaseHTTPRequestHandler
 import json
-import pandas as pd
+import csv
+from http.server import BaseHTTPRequestHandler
 from io import StringIO
 
 class handler(BaseHTTPRequestHandler):
-    # Handle POST requests
     def do_POST(self):
-        # Set the response headers to JSON
-        self.send_response(200)
-        self.send_header('Content-type','application/json')
-        self.end_headers()
+        try:
+            # Read the binary content from the request
+            content_length = int(self.headers['Content-Length'])
+            binary_data = self.rfile.read(content_length)
 
-        # Read and parse the request body
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        body = json.loads(post_data.decode('utf-8'))
+            # Convert binary data to a list of dictionaries
+            data = self.parse_binary_data(binary_data)
 
-        # Validate input data
-        if body is None or "data" not in body:
-            error_response = json.dumps({"error": "Invalid input or missing 'data' field."})
-            self.wfile.write(error_response.encode('utf-8'))
-            return
-        
-        data = body.get("data", [])
-        # Ensure each item has 'name' and 'age'
-        for item in data:
-            if "name" not in item or "age" not in item:
-                error_response = json.dumps({"error": "Each item must have 'name' and 'age'."})
-                self.wfile.write(error_response.encode('utf-8'))
-                return
+            # Convert the list of dictionaries to CSV
+            csv_data = self.convert_to_csv(data)
 
-        # Convert data into a CSV format using pandas
-        df = pd.DataFrame(data)
-        csv_output = StringIO()
-        df.to_csv(csv_output, index=False)
-        
-        # Return the CSV as part of the JSON response
-        success_response = json.dumps({"csv": csv_output.getvalue()})
-        self.wfile.write(success_response.encode('utf-8'))
+            # Send the response
+            self.send_response(200)
+            self.send_header('Content-type', 'text/csv')
+            self.end_headers()
+            self.wfile.write(csv_data.encode('utf-8'))
+
+        except Exception as e:
+            self.send_error(400, str(e))
+
+    def parse_binary_data(self, binary_data):
+        # Example parsing logic for binary data
+        # This is a placeholder and should be replaced with actual parsing logic
+        # For demonstration, we assume binary data is a list of integers
+        data = []
+        for i in range(0, len(binary_data), 4):
+            value = int.from_bytes(binary_data[i:i+4], byteorder='big')
+            data.append({'value': value})
+        return data
+
+    def convert_to_csv(self, data):
+        # Convert the list of dictionaries to CSV
+        output = StringIO()
+        writer = csv.DictWriter(output, fieldnames=['value'])
+        writer.writeheader()
+        writer.writerows(data)
+        return output.getvalue()
