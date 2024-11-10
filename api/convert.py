@@ -2,9 +2,8 @@ import csv
 import io
 import zipfile
 from http.server import BaseHTTPRequestHandler
-from io import StringIO
-import openpyxl
 import cgi
+import openpyxl
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -69,9 +68,32 @@ class handler(BaseHTTPRequestHandler):
 
     def convert_to_csv(self, data):
         # Convert the parsed data to CSV
-        output = StringIO()
+        output = io.StringIO()
         writer = csv.writer(output)
+
+        # Define the desired CSV headers
+        headers = [
+            "Rippling Emp No", "Employee Name", "Import ID", "Start Time", "End Time",
+            "Pay Period Start Date", "Pay Period End Date", "Job Code", "Comment",
+            "Break Type", "Break Start Time", "Break End Time"
+        ]
+        writer.writerow(headers)
+
+        # Parse the input data and map to the desired CSV format
         lines = data.splitlines()
         for line in lines:
-            writer.writerow(line.split(','))
+            if line.startswith("Started By"):
+                continue
+            if line.startswith("Total"):
+                continue
+            if line.strip() == "":
+                continue
+
+            parts = line.split('\t')
+            if len(parts) == 7:
+                started_by, ended_by, start_date, end_date, start_time, end_time, duration = parts
+                writer.writerow([
+                    "", started_by, "", start_time, end_time, start_date, end_date, "", "", "", "", ""
+                ])
+
         return output.getvalue()
