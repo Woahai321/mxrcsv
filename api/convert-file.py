@@ -5,7 +5,7 @@ from io import StringIO
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        if self.path == '/convert-file':
+        if self.path == '/api/convert-file':
             self.handle_convert_file()
         else:
             self.send_error(404, 'Not Found')
