@@ -2,8 +2,9 @@ import csv
 import io
 import zipfile
 from http.server import BaseHTTPRequestHandler
-import cgi
+from io import StringIO
 import openpyxl
+import cgi
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -23,8 +24,8 @@ class handler(BaseHTTPRequestHandler):
                 # Parse the binary data
                 parsed_data = self.parse_binary_data(binary_data)
 
-                # Convert the parsed data to CSV
-                csv_data = self.convert_to_csv(parsed_data)
+                # Convert the parsed data to the desired CSV format
+                csv_data = self.convert_to_desired_csv(parsed_data)
 
                 # Send the response
                 self.send_response(200)
@@ -60,44 +61,50 @@ class handler(BaseHTTPRequestHandler):
 
     def convert_excel_to_csv(self, sheet):
         # Convert the Excel sheet to CSV
-        output = io.StringIO()
+        output = StringIO()
         writer = csv.writer(output)
         for row in sheet.iter_rows(values_only=True):
             writer.writerow(row)
         return output.getvalue()
 
-    def convert_to_csv(self, data):
-        # Convert the parsed data to CSV
-        output = io.StringIO()
+    def convert_to_desired_csv(self, data):
+        # Convert the parsed data to the desired CSV format
+        output = StringIO()
         writer = csv.writer(output)
 
-        # Define the desired CSV headers
-        headers = [
+        # Write the headers
+        writer.writerow([
             "Rippling Emp No", "Employee Name", "Import ID", "Start Time", "End Time",
             "Pay Period Start Date", "Pay Period End Date", "Job Code", "Comment",
             "Break Type", "Break Start Time", "Break End Time"
-        ]
-        writer.writerow(headers)
+        ])
 
-        # Parse the input data and map to the desired CSV format
+        # Parse the input data
         lines = data.splitlines()
-        header_found = False
+        note = ""
         for line in lines:
-            if line.startswith("Started By"):
-                header_found = True
-                continue
-            if line.startswith("Total"):
-                header_found = False
-                continue
-            if line.strip() == "":
-                continue
-
-            if header_found:
-                parts = line.split('\t')
-                if len(parts) == 7:
-                    started_by, ended_by, start_date, end_date, start_time, end_time, duration = parts
-                    writer.writerow([
-                        "", started_by, "", start_time, end_time, start_date, end_date, "", "", "", "", ""
-                    ])
+            if line.startswith("Time Tracking"):
+                continue  # Ignore "Time Tracking" line
+            elif line.startswith("Add Recaptcha to Web Forms"):
+                note = line.split(' ')[-1]  # Extract note
+            elif line.startswith("Started By"):
+                headers = line.split('\t')
+            elif line and not line.startswith("Total"):
+                values = line.split('\t')
+                # Map the values to the desired CSV format
+                writer.writerow([
+                    "",  # Rippling Emp No
+                    values[0],  # Employee Name
+                    "",  # Import ID
+                    values[4],  # Start Time
+                    values[5],  # End Time
+                    values[2],  # Pay Period Start Date
+                    values[3],  # Pay Period End Date
+                    "",  # Job Code
+                    note,  # Comment
+                    "",  # Break Type
+                    "",  # Break Start Time
+                    ""  # Break End Time
+                ])
 
         return output.getvalue()
