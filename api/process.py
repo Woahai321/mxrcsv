@@ -90,6 +90,7 @@ class handler(BaseHTTPRequestHandler):
                     csv_writer.writerow([current_comment, employee_name, pay_period_start, pay_period_end, start_time, end_time])
                     #print(f"Writing CSV row: {current_comment}, {employee_name}, {pay_period_start}, {pay_period_end}, {start_time}, {end_time}")
                 else:
+                    print(f"Warning: No comment found for data row, please debug.")
                     #print(f"Warning: No comment found for data row: {line}")
             else:
                 # Treat this line as a new "comment" or task name
@@ -104,5 +105,5 @@ if __name__ == "__main__":
     PORT = 8000
     server_address = ('', PORT)
     httpd = HTTPServer(server_address, handler)
-    #print(f"Serving HTTP API on port {PORT}.")
+    print(f"Serving HTTP API on port {PORT}.")
     httpd.serve_forever()
