@@ -3,3 +3,6 @@ openpyxl==3.1.5
 Flask==3.0.3
 requests==2.32.3
 googlesearch-python==1.2.5
+selenium==4.26.1
+beautifulsoup4==4.12.3
+undetected-chromedriver==3.5.5
