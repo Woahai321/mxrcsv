@@ -1,131 +1,144 @@
 import re
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import requests
-from googlesearch import search
-from bs4 import BeautifulSoup
+import time
+from http.server import BaseHTTPRequestHandler
 import json
 import urllib.parse
+from googlesearch import search
+from bs4 import BeautifulSoup
+import undetected_chromedriver as uc
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.webdriver.common.action_chains import ActionChains
 
+def scrape_linkedin_data_using_selenium(linkedin_url):
+    try:
+        options = uc.ChromeOptions()
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--headless")
+
+        driver = uc.Chrome(options=options)
+        driver.get(linkedin_url)
+
+        # Wait for any overlay to disappear
+        try:
+            WebDriverWait(driver, 10).until(
+                EC.invisibility_of_element_located((By.XPATH, "//div[contains(@class, 'modal__overlay--visible')]"))
+            )
+            print("Overlay has disappeared!")
+        except TimeoutException:
+            print("No overlay found. Proceeding...")
+
+        # Find the "Dismiss" button and force click using JavaScript (in case the click is blocked)
+        try:
+            dismiss_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(@aria-label, 'Dismiss')]"))
+            )
+            driver.execute_script("arguments[0].click();", dismiss_button)
+            print("Popup dismissed!")
+        except TimeoutException:
+            print("No dismiss button found.")
+
+        # Wait for the main content to load
+        time.sleep(3)
+
+        # Extract company name
+        data = {}
+        try:
+            company_name = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located((By.CSS_SELECTOR, ".top-card-layout__title"))
+            ).text.strip()
+        except TimeoutException:
+            company_name = "Not Available"
+        data["Found LinkedIn Company Name"] = company_name
+
+        # Extract company information
+        try:
+            company_info_section = driver.find_element(By.CSS_SELECTOR, "p[data-test-id='about-us__description']").text.strip()
+        except NoSuchElementException:
+            company_info_section = "Not Available"
+        data["Found LinkedIn Company Information"] = company_info_section
+
+        # Extract the website link
+        try:
+            website_link = driver.find_element(By.XPATH, "//a[@data-test-id='about-us__website']").get_attribute("href")
+        except NoSuchElementException:
+            website_link = "Not Available"
+        data["Found LinkedIn Website"] = website_link
+
+        # Additional company information (Industry, Size, Headquarters, etc.)
+        info_sections = {
+            "Industry": "about-us__industry",
+            "Company size": "about-us__size",
+            "Headquarters": "about-us__headquarters",
+            "Type": "about-us__organizationType",
+            "Founded": "about-us__foundedOn",
+            "Specialties": "about-us__specialties",
+        }
+
+        # Loop over each section to extract data
+        for section, data_test_id in info_sections.items():
+            try:
+                data[section] = driver.find_element(By.XPATH, f"//div[@data-test-id='{data_test_id}']//dd").text.strip()
+            except NoSuchElementException:
+                data[section] = "Not Available"
+
+        # Close the browser and return data
+        driver.quit()
+        return data
+
+    except Exception as e:
+        return {"error": f"An error occurred while scraping LinkedIn: {str(e)}"}
+
+# HTTP server handler in serverless format (compatible with Vercel)
 class handler(BaseHTTPRequestHandler):
 
-    # Function to extract LinkedIn URL for a company
+    # Locate LinkedIn URL using a Google search
     def find_linkedin_url(self, company_name):
         query = f"{company_name} site:linkedin.com/company"
         for result in search(query, num_results=5):
             if 'linkedin.com/company' in result:
-                return result  # First relevant LinkedIn company URL
+                return result
         return None
 
-    # Function to scrape LinkedIn page for company information
-    def scrape_linkedin_data(self, linkedin_url):
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0"
-        }
-        response = requests.get(linkedin_url, headers=headers)
-        if response.status_code != 200:
-            return None  # No data fetched
-
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        # Parsing out specific company information
-        data = {}
-
-        try:
-            # Extracting Company Details; these selectors are based on LinkedIn's structure
-            data["Found LinkedIn Company Name"] = soup.find("h1", {"class": "top-card-layout__title"}).get_text(strip=True)
-
-            data["Found LinkedIn Company Information"] = soup.find("p", {"class": "description"}).get_text(strip=True)
-            
-            # Followers count
-            followers_text = soup.find(text=re.compile(r"\d+ followers"))
-            data["Found LinkedIn Followers"] = followers_text.strip() if followers_text else "N/A"
-
-            # 'About Us' Section
-            about_us_section = soup.find("section", {"class": "about-us"})
-            data["Found LinkedIn About Us"] = about_us_section.get_text(strip=True) if about_us_section else "N/A"
-
-            # Website, some times wrapped in a class like 'link-without-visited-state'
-            try:
-                data["Found LinkedIn Website"] = soup.find("a", {"class": "link-without-visited-state"}).get("href")
-            except AttributeError:
-                data["Found LinkedIn Website"] = "N/A"
-
-            # Extracting other company details like headquarters, industry, type, etc.
-            location_elem = soup.find("span", string="Headquarters")
-            if location_elem:
-                data["Found LinkedIn Location"] = location_elem.find_next("span").get_text(strip=True)
-            else:
-                data["Found LinkedIn Location"] = "Location not available"
-
-            industry_elem = soup.find("span", string="Industry")
-            if industry_elem:
-                data["Industry"] = industry_elem.find_next("span").get_text(strip=True)
-            else:
-                data["Industry"] = "Industry not available"
-
-            size_elem = soup.find("span", string="Company size")
-            data["Company Size"] = size_elem.find_next("span").get_text(strip=True) if size_elem else "Company size not available"
-
-            headquarters_elem = soup.find("span", string="Headquarters")
-            data["Headquarters"] = headquarters_elem.find_next("span").get_text(strip=True) if headquarters_elem else "Headquarters not available"
-
-            type_elem = soup.find("span", string="Type")
-            data["Type"] = type_elem.find_next("span").get_text(strip=True) if type_elem else "Type not available"
-
-            founded_elem = soup.find("span", string="Founded")
-            data["Founded"] = founded_elem.find_next("span").get_text(strip=True) if founded_elem else "Founded year not available"
-
-            # Specialties may be located in a different section
-            specialties_elem = soup.find("span", string=re.compile(r"Specialties"))
-            data["Specialties"] = specialties_elem.find_next("span").get_text(strip=True) if specialties_elem else "No specialties available"
-        
-            # Multiple locations might be provided
-            locations_elem = soup.find_all("span", string=re.compile(r"Location"))
-            data["Locations"] = [loc.find_next("span").get_text(strip=True) for loc in locations_elem] if locations_elem else "No locations available"
-
-        except Exception as e:
-            data["error"] = f"Failed to parse LinkedIn page. Error: {str(e)}"
-
-        return data
-
-    # Handle POST requests for API calls
+    # Handle POST requests
     def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length).decode('utf-8')
+        # Read request body (company name)
+        length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(length).decode('utf-8')
 
-        # Expect the input to be a company name (in plain text)
-        company_name = post_data.strip()
+        company_name = post_data.strip()  # Extract company name from request
 
-        # URL encode the company name for use in search queries
-        company_name_encoded = urllib.parse.quote(company_name)
+        # Search for the company's LinkedIn URL via Google
+        linkedin_url = self.find_linkedin_url(urllib.parse.quote(company_name))
 
-        # Step 1: Find LinkedIn URL for the company using Google search
-        linkedin_url = self.find_linkedin_url(company_name_encoded)
-
+        # If LinkedIn profile found, start scraping
         if linkedin_url:
-            # Step 2: Scrape LinkedIn URL to extract relevant company information
-            linkedin_data = self.scrape_linkedin_data(linkedin_url)
+            linked_in_data = scrape_linkedin_data_using_selenium(linkedin_url)
+            response = {
+                "company_name": company_name,
+                "linkedin_url": linkedin_url,
+                "data": linked_in_data
+            }
 
-            if linkedin_data:
-                response = {
-                    "company_name": company_name,
-                    "linkedin_url": linkedin_url,
-                    "data": linkedin_data
-                }
-                # Return the response with company data
-                self.send_response(200)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
-            else:
-                self.send_error(500, "Failed to fetch or parse LinkedIn data")
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps(response, ensure_ascii=False).encode('utf-8'))
+
         else:
+            # Send 404 if LinkedIn profile is not found
             self.send_error(404, "LinkedIn profile not found for the company")
 
-# Run the server
+# Vercel will map HTTP requests here automatically. 
 if __name__ == "__main__":
-    PORT = 8000
+    import os
+    PORT = int(os.getenv('PORT', 8000))
+    from http.server import HTTPServer
     server_address = ('', PORT)
     httpd = HTTPServer(server_address, handler)
-    print(f"Serving HTTP API on port {PORT}.")
+    print(f"Serving HTTP API on port {PORT}")
     httpd.serve_forever()
