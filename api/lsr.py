@@ -20,6 +20,9 @@ def scrape_linkedin_data_using_selenium(linkedin_url):
         options.add_argument("--disable-dev-shm-usage")
         options.add_argument("--headless")
 
+        # Specify Chrome binary location (use Vercel's path)
+        options.binary_location = "/usr/bin/chromium-browser"
+
         driver = uc.Chrome(options=options)
         driver.get(linkedin_url)
 
